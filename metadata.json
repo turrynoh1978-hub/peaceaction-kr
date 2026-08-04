@@ -1,0 +1,6 @@
+{
+  "name": "기억과 평화의 집",
+  "description": "기억과 평화의 집 공식 웹사이트 - 평화와 기억, 시민 참여 모금 및 소식과 아카이브 제공",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
