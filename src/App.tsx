@@ -3,7 +3,6 @@ import { NavTab, CardNews, DonorRecord } from './types';
 import { INITIAL_CARD_NEWS, INITIAL_DONORS, CAMPAIGN_STATS } from './data/initialData';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
-import { VideoSection } from './components/VideoSection';
 import { AboutSection } from './components/AboutSection';
 import { NewsSection } from './components/NewsSection';
 import { DonationSection } from './components/DonationSection';
@@ -66,9 +65,6 @@ export default function App() {
             onDonateClick={handleOpenDonateModal}
             onExploreClick={() => scrollToSection('news')}
           />
-
-          {/* Video Section (Autoplay YouTube Video) */}
-          <VideoSection />
 
           {/* 1. 소개 (About) */}
           <AboutSection />

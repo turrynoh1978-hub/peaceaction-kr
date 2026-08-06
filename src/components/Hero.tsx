@@ -1,6 +1,7 @@
 import React from 'react';
 import { Heart, ArrowRight, Shield, Users, MessageSquare, Sparkles } from 'lucide-react';
 import { LogoIcon } from './LogoIcon';
+import { VideoSection } from './VideoSection';
 import { CAMPAIGN_STATS } from '../data/initialData';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -22,10 +23,10 @@ export const Hero: React.FC<HeroProps> = ({ onDonateClick, onExploreClick, cheer
       <div className="absolute bottom-0 left-10 w-72 h-72 bg-emerald-200/20 rounded-full blur-3xl pointer-events-none"></div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="grid lg:grid-cols-12 gap-12 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           
-          {/* Main Hero Content */}
-          <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+          {/* Main Hero Content (Order 1 on mobile) */}
+          <div className="order-1 lg:col-span-7 space-y-6 text-center lg:text-left">
             <button
               onClick={onDonateClick}
               className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100/90 border border-emerald-300 hover:bg-emerald-200/80 text-emerald-900 text-xs font-bold tracking-wide transition-all cursor-pointer shadow-2xs group"
@@ -78,8 +79,13 @@ export const Hero: React.FC<HeroProps> = ({ onDonateClick, onExploreClick, cheer
             </div>
           </div>
 
-          {/* Right Campaign Progress Feature Card */}
-          <div className="lg:col-span-5">
+          {/* Video Section (Order 2 on mobile - after trust badge and before campaign status, Order 3 / col-span-12 on desktop) */}
+          <div className="order-2 lg:order-3 lg:col-span-12 mt-2 lg:mt-6">
+            <VideoSection />
+          </div>
+
+          {/* Right Campaign Progress Feature Card (Order 3 on mobile - after video section, Order 2 / col-span-5 on desktop) */}
+          <div className="order-3 lg:order-2 lg:col-span-5">
             <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 sm:p-7 shadow-xl border border-teal-100/90 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-100/40 rounded-full blur-2xl pointer-events-none"></div>
 
