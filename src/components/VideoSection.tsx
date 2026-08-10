@@ -29,7 +29,7 @@ export const VideoSection: React.FC = () => {
         <div className="relative rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border border-slate-700/80 bg-slate-950 group">
           <div className="aspect-video w-full relative">
             <iframe
-              src="https://www.youtube.com/embed/apQ3AN2C9Hc?list=UUEMXDG-mGWmtbC18Ch5N91A&autoplay=1&mute=1&controls=1&playsinline=1"
+              src="https://www.youtube.com/embed/B1HbgKpz8Do?list=PLe3rSSJHNlag&autoplay=1&mute=1&controls=1&playsinline=1"
               title="기억과 평화의 집에 함께하는 사람들 재생목록"
               className="w-full h-full border-0 rounded-xl sm:rounded-2xl"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
