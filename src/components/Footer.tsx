@@ -3,7 +3,11 @@ import { Phone, Printer, Mail, MapPin, ShieldCheck, ArrowUp } from 'lucide-react
 import { LogoIcon } from './LogoIcon';
 import { useLanguage } from '../context/LanguageContext';
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  onOpenAdminModal?: () => void;
+}
+
+export const Footer: React.FC<FooterProps> = ({ onOpenAdminModal }) => {
   const { t } = useLanguage();
 
   const scrollToTop = () => {
@@ -90,8 +94,17 @@ export const Footer: React.FC = () => {
 
         {/* Bottom copyright & Back-to-top */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <div>
-            © 2026 기억과 평화의 집 (House of Memory & Peace). All rights reserved.
+          <div className="flex items-center gap-3">
+            <span>© 2026 기억과 평화의 집 (House of Memory & Peace). All rights reserved.</span>
+            {onOpenAdminModal && (
+              <button
+                onClick={onOpenAdminModal}
+                className="text-slate-500 hover:text-emerald-400 font-medium underline flex items-center gap-1 cursor-pointer"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <span>관리자 전용</span>
+              </button>
+            )}
           </div>
 
           <button

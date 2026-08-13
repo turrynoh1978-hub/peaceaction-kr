@@ -32,6 +32,15 @@ export interface DonorRecord {
   message?: string;
   isRecurring: boolean;
   isAnonymous?: boolean;
+  phone?: string;
+  email?: string;
+  receiptRequested?: boolean;
+  receiptType?: 'individual' | 'corporate';
+  residentId?: string;
+  businessRegNo?: string;
+  address?: string;
+  paymentMethod?: string;
+  status?: '대기' | '발급완료' | '취소';
 }
 
 export interface DonationFormState {

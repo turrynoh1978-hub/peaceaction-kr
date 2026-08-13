@@ -111,7 +111,16 @@ export const DonationSection: React.FC<DonationSectionProps> = ({
       date: todayStr,
       message: formState.message || '기억과 평화의 집 건립을 응원합니다!',
       isRecurring: false,
-      isAnonymous: formState.isAnonymous
+      isAnonymous: formState.isAnonymous,
+      phone: formState.phone,
+      email: formState.email,
+      receiptRequested: formState.receiptRequested,
+      receiptType: formState.receiptRequested ? formState.receiptType : undefined,
+      residentId: formState.receiptRequested && formState.receiptType === 'individual' ? formState.residentId : undefined,
+      businessRegNo: formState.receiptRequested && formState.receiptType === 'corporate' ? formState.businessRegNo : undefined,
+      address: formState.receiptRequested ? formState.address : undefined,
+      paymentMethod: '후원계좌 입금',
+      status: '대기'
     };
 
     onAddDonor(newRecord, finalAmount);

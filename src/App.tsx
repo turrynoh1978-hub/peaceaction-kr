@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavTab, CardNews, DonorRecord } from './types';
 import { INITIAL_CARD_NEWS, INITIAL_DONORS, CAMPAIGN_STATS } from './data/initialData';
 import { Header } from './components/Header';
@@ -9,14 +9,38 @@ import { DonationSection } from './components/DonationSection';
 import { ArchiveSection } from './components/ArchiveSection';
 import { ArticlesAccordion } from './components/ArticlesAccordion';
 import { Footer } from './components/Footer';
+import { AdminModal } from './components/AdminModal';
 import { LanguageProvider } from './context/LanguageContext';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('소개');
   const [newsList, setNewsList] = useState<CardNews[]>(INITIAL_CARD_NEWS);
-  const [donors, setDonors] = useState<DonorRecord[]>(INITIAL_DONORS);
+  
+  // LocalStorage persistent donors state
+  const [donors, setDonors] = useState<DonorRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('peace_donors_v2');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to load donors from localStorage:', e);
+    }
+    return INITIAL_DONORS;
+  });
+
   const [currentAmount, setCurrentAmount] = useState<number>(CAMPAIGN_STATS.currentAmount);
   const [isDonateModalOpen, setIsDonateModalOpen] = useState<boolean>(false);
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
+
+  // Save donors to localStorage whenever state changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('peace_donors_v2', JSON.stringify(donors));
+    } catch (e) {
+      console.error('Failed to save donors to localStorage:', e);
+    }
+  }, [donors]);
 
   const handleLikeNews = (id: string) => {
     setNewsList((prev) =>
@@ -29,6 +53,20 @@ export default function App() {
   const handleAddDonor = (newDonor: DonorRecord, addedAmount: number) => {
     setDonors((prev) => [newDonor, ...prev]);
     setCurrentAmount((prev) => prev + addedAmount);
+  };
+
+  const handleUpdateDonorStatus = (id: string, status: '대기' | '발급완료' | '취소') => {
+    setDonors((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, status } : d))
+    );
+  };
+
+  const handleDeleteDonor = (id: string) => {
+    setDonors((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  const handleAddManualDonor = (newDonor: DonorRecord) => {
+    setDonors((prev) => [newDonor, ...prev]);
   };
 
   const scrollToSection = (id: string) => {
@@ -55,6 +93,7 @@ export default function App() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           onOpenDonateModal={handleOpenDonateModal}
+          onOpenAdminModal={() => setIsAdminModalOpen(true)}
         />
 
         {/* Main Content Sections */}
@@ -88,7 +127,17 @@ export default function App() {
         </main>
 
         {/* Footer */}
-        <Footer />
+        <Footer onOpenAdminModal={() => setIsAdminModalOpen(true)} />
+
+        {/* Admin Management Modal */}
+        <AdminModal
+          isOpen={isAdminModalOpen}
+          onClose={() => setIsAdminModalOpen(false)}
+          donors={donors}
+          onUpdateStatus={handleUpdateDonorStatus}
+          onDeleteDonor={handleDeleteDonor}
+          onAddManualDonor={handleAddManualDonor}
+        />
       </div>
     </LanguageProvider>
   );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavTab } from '../types';
-import { Heart, Menu, X, Globe } from 'lucide-react';
+import { Heart, Menu, X, Globe, ShieldCheck } from 'lucide-react';
 import { LogoIcon } from './LogoIcon';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -8,12 +8,14 @@ interface HeaderProps {
   activeTab: NavTab;
   setActiveTab: (tab: NavTab) => void;
   onOpenDonateModal: () => void;
+  onOpenAdminModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
   onOpenDonateModal,
+  onOpenAdminModal,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -135,6 +137,18 @@ export const Header: React.FC<HeaderProps> = ({
               <span>{language === 'ko' ? 'EN' : 'KR'}</span>
             </button>
 
+            {/* Admin Management Modal Trigger Button */}
+            {onOpenAdminModal && (
+              <button
+                onClick={onOpenAdminModal}
+                className="hidden lg:flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-slate-700 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                title="관리자 전용: 후원 내역 및 영수증 신청 관리"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>관리자</span>
+              </button>
+            )}
+
             <button
               onClick={() => {
                 handleNavClick('#sponsorship', '기억과 평화의 집 후원');
@@ -191,6 +205,19 @@ export const Header: React.FC<HeaderProps> = ({
             <Heart className="w-4 h-4 fill-white/20" />
             <span>{t('header.mobileDonateBtn', '기억과 평화의 집 후원 참여하기')}</span>
           </button>
+
+          {onOpenAdminModal && (
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenAdminModal();
+              }}
+              className="w-full mt-2 flex items-center justify-center gap-2 bg-slate-900 text-emerald-400 border border-slate-700 font-bold py-2.5 px-4 rounded-xl cursor-pointer text-xs"
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>관리자 전용 (후원 및 영수증 관리)</span>
+            </button>
+          )}
         </div>
       )}
     </header>
