@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DonationFormState, DonorRecord } from '../types';
-import { CAMPAIGN_STATS } from '../data/initialData';
+import { CAMPAIGN_STATS, INITIAL_DONORS } from '../data/initialData';
 import {
   Heart,
   ShieldCheck,
@@ -78,10 +78,24 @@ export const DonationSection: React.FC<DonationSectionProps> = ({
   const [donorSearchTerm, setDonorSearchTerm] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [accountCopied, setAccountCopied] = useState(false);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   const finalAmount = formState.customAmount
     ? parseInt(formState.customAmount.replace(/,/g, ''), 10) || 0
     : formState.amount;
+
+  const scrollToCheerWall = () => {
+    setTimeout(() => {
+      const el = document.getElementById('cheer-wall');
+      if (el) {
+        const offsetTop = el.offsetTop - 90;
+        window.scrollTo({
+          top: Math.max(0, offsetTop),
+          behavior: 'smooth'
+        });
+      }
+    }, 150);
+  };
 
   const handleSubmitDonation = (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,9 +139,23 @@ export const DonationSection: React.FC<DonationSectionProps> = ({
 
     onAddDonor(newRecord, finalAmount);
     setSubmittedReceipt(newRecord);
+    setSuccessToast(
+      language === 'en'
+        ? 'Your cheer message and donation request have been successfully registered!'
+        : '응원 메시지와 후원 신청이 성공적으로 등록되었습니다!'
+    );
+
     if (onCloseModalDirectly) {
       onCloseModalDirectly();
     }
+
+    // Scroll smoothly to live cheer messages section
+    scrollToCheerWall();
+
+    // Auto-dismiss success toast after 4 seconds
+    setTimeout(() => {
+      setSuccessToast(null);
+    }, 4500);
 
     // Reset form
     setFormState({
@@ -523,17 +551,40 @@ export const DonationSection: React.FC<DonationSectionProps> = ({
     </form>
   );
 
+  const initialDonorIds = new Set(INITIAL_DONORS.map((d) => d.id));
+  const userAddedDonors = donors.filter((d) => !initialDonorIds.has(d.id));
+  const userAddedTotal = userAddedDonors.reduce((sum, d) => sum + d.amount, 0);
+
+  const displayCurrentAmount = CAMPAIGN_STATS.currentAmount + userAddedTotal;
+  const displayDonorCount = CAMPAIGN_STATS.donorCount + userAddedDonors.length;
+
   const filteredDonors = donors.filter(d =>
     d.name.includes(donorSearchTerm) || (d.message && d.message.includes(donorSearchTerm))
   );
 
   const progressPercent = Math.min(
     100,
-    Number(((CAMPAIGN_STATS.currentAmount / CAMPAIGN_STATS.targetAmount) * 100).toFixed(1))
+    Number(((displayCurrentAmount / CAMPAIGN_STATS.targetAmount) * 100).toFixed(1))
   );
 
   return (
     <section id="sponsorship" className="py-20 bg-gradient-to-b from-sky-50/60 via-teal-50/50 to-white relative scroll-mt-20">
+      {/* Toast Alert Feedback */}
+      {successToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 text-white px-5 py-3 rounded-2xl shadow-2xl border border-emerald-400/50 flex items-center gap-3 text-xs sm:text-sm font-bold animate-bounce">
+          <div className="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4 h-4" />
+          </div>
+          <span>{successToast}</span>
+          <button
+            onClick={() => setSuccessToast(null)}
+            className="ml-2 text-slate-400 hover:text-white cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Anchor alias for compatibility */}
       <div id="donation" className="absolute -top-20 left-0"></div>
 
@@ -655,7 +706,7 @@ export const DonationSection: React.FC<DonationSectionProps> = ({
                 {t('don.currentAmountLabel', '현재 모금액')}
               </span>
               <div className="text-xl sm:text-2xl font-black text-amber-300 mt-1">
-                {CAMPAIGN_STATS.currentAmount.toLocaleString()}{language === 'en' ? ' KRW' : '원'}
+                {displayCurrentAmount.toLocaleString()}{language === 'en' ? ' KRW' : '원'}
               </div>
             </div>
 
@@ -665,7 +716,7 @@ export const DonationSection: React.FC<DonationSectionProps> = ({
                 {t('don.donorCountLabel', '함께한 시민 기부자')}
               </span>
               <div className="text-xl sm:text-2xl font-black mt-1">
-                {CAMPAIGN_STATS.donorCount.toLocaleString()}{language === 'en' ? ' donors' : '명'}
+                {displayDonorCount.toLocaleString()}{language === 'en' ? ' donors' : '명'}
               </div>
             </div>
           </div>
@@ -777,7 +828,7 @@ export const DonationSection: React.FC<DonationSectionProps> = ({
         )}
 
         {/* 3. 기부자 응원 한마디 현황 */}
-        <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200/80 shadow-md">
+        <div id="cheer-wall" className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200/80 shadow-md scroll-mt-24">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 text-sky-800 text-xs font-bold mb-1">

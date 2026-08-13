@@ -3,7 +3,7 @@ import { CardNews, ArchiveItem, DonorRecord } from '../types';
 export const CAMPAIGN_STATS = {
   targetAmount: 113000000, // 1억 1,300만원
   currentAmount: 30547000, // 3,054만 7,000원 (30,547,000원)
-  donorCount: 154, // 154명
+  donorCount: 192, // 192명
   daysLeft: 142,
   startDate: '2026-04-27',
   endDate: '2026-12-31'
@@ -56,73 +56,7 @@ export const INITIAL_CARD_NEWS: CardNews[] = [
   }
 ];
 
-export const INITIAL_DONORS: DonorRecord[] = [
-  {
-    id: 'd-1001',
-    name: '홍길동',
-    amount: 100000,
-    date: '2026.08.11',
-    message: '기억과 평화의 집 건립을 진심으로 응원합니다!',
-    isRecurring: false,
-    isAnonymous: false,
-    phone: '010-1234-5678',
-    email: 'hong@example.com',
-    receiptRequested: true,
-    receiptType: 'individual',
-    residentId: '850315-1******',
-    address: '서울특별시 마포구 성산로 123',
-    paymentMethod: '후원계좌 입금',
-    status: '대기'
-  },
-  {
-    id: 'd-1002',
-    name: '주식회사 평화희망',
-    amount: 1000000,
-    date: '2026.08.10',
-    message: '올바른 역사를 보존하는 평화 보금자리가 되길 희망합니다.',
-    isRecurring: false,
-    isAnonymous: false,
-    phone: '02-987-6543',
-    email: 'contact@peacecorp.kr',
-    receiptRequested: true,
-    receiptType: 'corporate',
-    businessRegNo: '123-81-45678',
-    address: '경기도 동두천시 중앙로 45 (평화빌딩 4층)',
-    paymentMethod: '후원계좌 입금',
-    status: '발급완료'
-  },
-  {
-    id: 'd-1003',
-    name: '김지민',
-    amount: 50000,
-    date: '2026.08.09',
-    message: '작은 정성이지만 평화의 집 매입과 리모델링에 보탬이 되었으면 합니다.',
-    isRecurring: false,
-    isAnonymous: false,
-    phone: '010-8765-4321',
-    email: 'jimin.kim@example.com',
-    receiptRequested: true,
-    receiptType: 'individual',
-    residentId: '920720-2******',
-    address: '경기도 의정부시 평화로 789',
-    paymentMethod: '후원계좌 입금',
-    status: '대기'
-  },
-  {
-    id: 'd-1004',
-    name: '익명 기부자',
-    amount: 30000,
-    date: '2026.08.08',
-    message: '역사의 아픔을 잊지 않겠습니다.',
-    isRecurring: false,
-    isAnonymous: true,
-    phone: '010-5555-7777',
-    email: 'anonymous@peace.org',
-    receiptRequested: false,
-    paymentMethod: '후원계좌 입금',
-    status: '대기'
-  }
-];
+export const INITIAL_DONORS: DonorRecord[] = [];
 
 export const INITIAL_ARCHIVES: ArchiveItem[] = [
   {

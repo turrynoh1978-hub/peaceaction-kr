@@ -17,6 +17,8 @@ import {
   User,
   AlertCircle,
   KeyRound,
+  Lock,
+  LogOut,
   RefreshCw,
   MessageSquare
 } from 'lucide-react';
@@ -38,7 +40,13 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   onDeleteDonor,
   onAddManualDonor
 }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true); // default unlocked for smooth testing
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('peace_admin_authed') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [pinInput, setPinInput] = useState<string>('');
   const [pinError, setPinError] = useState<boolean>(false);
 
@@ -66,14 +74,35 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Handle PIN verification
+  // Handle Password Verification
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pinInput === '1234' || pinInput === 'admin') {
+    const validPasswords = ['admin1234', '1234', 'admin'];
+    const envPass = (import.meta as unknown as { env?: { VITE_ADMIN_PASSWORD?: string } }).env?.VITE_ADMIN_PASSWORD;
+    if (envPass) validPasswords.push(envPass);
+
+    if (validPasswords.includes(pinInput.trim())) {
       setIsAuthenticated(true);
       setPinError(false);
+      setPinInput('');
+      try {
+        sessionStorage.setItem('peace_admin_authed', 'true');
+      } catch (err) {
+        console.error(err);
+      }
     } else {
       setPinError(true);
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setPinError(false);
+    setPinInput('');
+    try {
+      sessionStorage.removeItem('peace_admin_authed');
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -242,22 +271,34 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto">
       <div className="bg-white rounded-3xl max-w-6xl w-full p-5 sm:p-8 shadow-2xl border border-slate-200 relative my-6 max-h-[92vh] flex flex-col">
         
-        {/* Modal Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 cursor-pointer transition-all z-10"
-          title="닫기"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {/* Modal Header Controls */}
+        <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+          {isAuthenticated && (
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 text-xs font-bold transition-all border border-slate-200 cursor-pointer"
+              title="관리자 로그아웃"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">로그아웃</span>
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 cursor-pointer transition-all"
+            title="닫기"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
         {/* Header Title */}
-        <div className="mb-6 space-y-1.5 border-b border-slate-100 pb-4 shrink-0 pr-8">
+        <div className="mb-6 space-y-1.5 border-b border-slate-100 pb-4 shrink-0 pr-20">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 text-emerald-400 text-xs font-bold shadow-2xs">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
             <span>사단법인 평화시민행동 관리자 전용</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
             후원자 내역 & 기부금 영수증 신청 관리
           </h2>
           <p className="text-xs sm:text-sm text-slate-500">
@@ -265,46 +306,56 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           </p>
         </div>
 
-        {/* If PIN Authentication Needed */}
+        {/* Password Verification View */}
         {!isAuthenticated ? (
-          <div className="my-auto py-12 px-4 text-center max-w-md mx-auto space-y-4">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-inner">
-              <KeyRound className="w-8 h-8" />
+          <div className="my-auto py-8 sm:py-12 px-4 text-center max-w-sm sm:max-w-md mx-auto space-y-5">
+            <div className="w-16 h-16 rounded-2xl bg-slate-900 text-emerald-400 flex items-center justify-center mx-auto shadow-lg border border-slate-800">
+              <Lock className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-xl font-extrabold text-slate-900">관리자 인증</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                관리자 비밀번호를 입력하시거나 [빠른 접속] 버튼을 클릭해 주세요. (기본 PIN: 1234)
+              <h3 className="text-xl font-extrabold text-slate-900">관리자 비밀번호 확인</h3>
+              <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                관리자 전용 데이터 접근을 위해 비밀번호를 입력해 주세요.
               </p>
             </div>
 
-            <form onSubmit={handlePinSubmit} className="space-y-3 pt-2">
-              <input
-                type="password"
-                placeholder="비밀번호 입력 (기본: 1234)"
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center text-sm font-bold focus:bg-white focus:border-emerald-500 focus:outline-none"
-              />
-              {pinError && (
-                <p className="text-xs text-rose-600 font-bold">비밀번호가 일치하지 않습니다. (1234 사용)</p>
-              )}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAuthenticated(true)}
-                  className="w-1/2 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer"
-                >
-                  빠른 관리자 접속
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-xs"
-                >
-                  확인 및 로그인
-                </button>
+            <form onSubmit={handlePinSubmit} className="space-y-3 pt-1">
+              <div className="space-y-1">
+                <input
+                  type="password"
+                  autoFocus
+                  placeholder="비밀번호 입력 (기본: admin1234)"
+                  value={pinInput}
+                  onChange={(e) => {
+                    setPinInput(e.target.value);
+                    if (pinError) setPinError(false);
+                  }}
+                  className={`w-full bg-slate-50 border rounded-xl px-4 py-3.5 text-center text-sm font-bold tracking-wider focus:bg-white focus:outline-none transition-all ${
+                    pinError
+                      ? 'border-rose-500 ring-2 ring-rose-200'
+                      : 'border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100'
+                  }`}
+                />
+                {pinError && (
+                  <p className="text-xs text-rose-600 font-bold flex items-center justify-center gap-1.5 pt-1.5 animate-shake">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>비밀번호가 올바르지 않습니다.</span>
+                  </p>
+                )}
               </div>
+
+              <button
+                type="submit"
+                className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm cursor-pointer shadow-sm transition-all active:scale-[0.99] flex items-center justify-center gap-2"
+              >
+                <Lock className="w-4 h-4" />
+                <span>관리자 로그인</span>
+              </button>
             </form>
+
+            <p className="text-[11px] text-slate-400 pt-2">
+              비밀번호 기본값: <code className="bg-slate-100 text-slate-700 font-mono px-1.5 py-0.5 rounded border border-slate-200">admin1234</code>
+            </p>
           </div>
         ) : (
           /* Authenticated Dashboard View */

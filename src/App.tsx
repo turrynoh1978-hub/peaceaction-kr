@@ -19,9 +19,13 @@ export default function App() {
   // LocalStorage persistent donors state
   const [donors, setDonors] = useState<DonorRecord[]>(() => {
     try {
-      const saved = localStorage.getItem('peace_donors_v2');
+      localStorage.removeItem('peace_donors_v2'); // Clean up old test data
+      const saved = localStorage.getItem('peace_donors_v3');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed: DonorRecord[] = JSON.parse(saved);
+        const existingIds = new Set(parsed.map((d) => d.id));
+        const missingInitial = INITIAL_DONORS.filter((d) => !existingIds.has(d.id));
+        return [...parsed, ...missingInitial];
       }
     } catch (e) {
       console.error('Failed to load donors from localStorage:', e);
@@ -29,14 +33,21 @@ export default function App() {
     return INITIAL_DONORS;
   });
 
-  const [currentAmount, setCurrentAmount] = useState<number>(CAMPAIGN_STATS.currentAmount);
-  const [isDonateModalOpen, setIsDonateModalOpen] = useState<boolean>(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
+  const [isDonateModalOpen, setIsDonateModalOpen] = useState<boolean>(false);
+
+  // Calculate dynamic current amount & donor count from user additions
+  const initialDonorIds = new Set(INITIAL_DONORS.map((d) => d.id));
+  const userAddedDonors = donors.filter((d) => !initialDonorIds.has(d.id));
+  const userAddedAmountTotal = userAddedDonors.reduce((sum, d) => sum + d.amount, 0);
+
+  const dynamicCurrentAmount = CAMPAIGN_STATS.currentAmount + userAddedAmountTotal;
+  const dynamicDonorCount = CAMPAIGN_STATS.donorCount + userAddedDonors.length;
 
   // Save donors to localStorage whenever state changes
   useEffect(() => {
     try {
-      localStorage.setItem('peace_donors_v2', JSON.stringify(donors));
+      localStorage.setItem('peace_donors_v3', JSON.stringify(donors));
     } catch (e) {
       console.error('Failed to save donors to localStorage:', e);
     }
@@ -52,7 +63,6 @@ export default function App() {
 
   const handleAddDonor = (newDonor: DonorRecord, addedAmount: number) => {
     setDonors((prev) => [newDonor, ...prev]);
-    setCurrentAmount((prev) => prev + addedAmount);
   };
 
   const handleUpdateDonorStatus = (id: string, status: '대기' | '발급완료' | '취소') => {
