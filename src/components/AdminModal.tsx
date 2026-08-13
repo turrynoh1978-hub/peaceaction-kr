@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DonorRecord } from '../types';
 import {
   ShieldCheck,
@@ -49,6 +49,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   });
   const [pinInput, setPinInput] = useState<string>('');
   const [pinError, setPinError] = useState<boolean>(false);
+
+  // Reset input field whenever modal is opened or closed
+  useEffect(() => {
+    if (isOpen) {
+      setPinInput('');
+      setPinError(false);
+    }
+  }, [isOpen]);
 
   const [activeTab, setActiveTab] = useState<'all' | 'receipts' | 'add'>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -319,12 +327,13 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               </p>
             </div>
 
-            <form onSubmit={handlePinSubmit} className="space-y-3 pt-1">
+            <form onSubmit={handlePinSubmit} className="space-y-3 pt-1" autoComplete="off">
               <div className="space-y-1">
                 <input
                   type="password"
                   autoFocus
-                  placeholder="비밀번호 입력 (기본: admin1234)"
+                  autoComplete="new-password"
+                  placeholder="비밀번호를 입력하세요"
                   value={pinInput}
                   onChange={(e) => {
                     setPinInput(e.target.value);
