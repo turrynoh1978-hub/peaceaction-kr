@@ -22,6 +22,8 @@ export interface CardNews {
   featured?: boolean;
   badge?: string;
   externalLink?: string;
+  youtubeId?: string;
+  isVideo?: boolean;
 }
 
 export interface DonorRecord {

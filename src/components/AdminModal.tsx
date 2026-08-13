@@ -361,10 +361,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 <span>관리자 로그인</span>
               </button>
             </form>
-
-            <p className="text-[11px] text-slate-400 pt-2">
-              비밀번호 기본값: <code className="bg-slate-100 text-slate-700 font-mono px-1.5 py-0.5 rounded border border-slate-200">admin1234</code>
-            </p>
           </div>
         ) : (
           /* Authenticated Dashboard View */
