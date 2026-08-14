@@ -14,7 +14,20 @@ import { LanguageProvider } from './context/LanguageContext';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('소개');
-  const [newsList, setNewsList] = useState<CardNews[]>(INITIAL_CARD_NEWS);
+  const [newsList, setNewsList] = useState<CardNews[]>(() => {
+    try {
+      const saved = localStorage.getItem('peace_news_v2');
+      if (saved) {
+        const parsed: CardNews[] = JSON.parse(saved);
+        const existingIds = new Set(parsed.map((n) => n.id));
+        const missingInitial = INITIAL_CARD_NEWS.filter((n) => !existingIds.has(n.id));
+        return [...parsed, ...missingInitial];
+      }
+    } catch (e) {
+      console.error('Failed to load news from localStorage:', e);
+    }
+    return INITIAL_CARD_NEWS;
+  });
   
   // LocalStorage persistent donors state
   const [donors, setDonors] = useState<DonorRecord[]>(() => {
@@ -35,6 +48,15 @@ export default function App() {
 
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
   const [isDonateModalOpen, setIsDonateModalOpen] = useState<boolean>(false);
+
+  // Save news to localStorage whenever state changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('peace_news_v2', JSON.stringify(newsList));
+    } catch (e) {
+      console.error('Failed to save news to localStorage:', e);
+    }
+  }, [newsList]);
 
   // Calculate dynamic current amount & donor count from user additions
   const initialDonorIds = new Set(INITIAL_DONORS.map((d) => d.id));
@@ -77,6 +99,14 @@ export default function App() {
 
   const handleAddManualDonor = (newDonor: DonorRecord) => {
     setDonors((prev) => [newDonor, ...prev]);
+  };
+
+  const handleAddNews = (newNews: CardNews) => {
+    setNewsList((prev) => [newNews, ...prev]);
+    setIsAdminModalOpen(false);
+    setTimeout(() => {
+      scrollToSection('news');
+    }, 150);
   };
 
   const scrollToSection = (id: string) => {
@@ -147,6 +177,7 @@ export default function App() {
           onUpdateStatus={handleUpdateDonorStatus}
           onDeleteDonor={handleDeleteDonor}
           onAddManualDonor={handleAddManualDonor}
+          onAddNews={handleAddNews}
         />
       </div>
     </LanguageProvider>

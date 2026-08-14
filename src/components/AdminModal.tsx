@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { DonorRecord } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { DonorRecord, CardNews } from '../types';
 import {
   ShieldCheck,
   X,
@@ -20,7 +20,13 @@ import {
   Lock,
   LogOut,
   RefreshCw,
-  MessageSquare
+  MessageSquare,
+  Newspaper,
+  Image as ImageIcon,
+  Upload,
+  FileText,
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
 
 interface AdminModalProps {
@@ -30,6 +36,7 @@ interface AdminModalProps {
   onUpdateStatus: (id: string, status: '대기' | '발급완료' | '취소') => void;
   onDeleteDonor: (id: string) => void;
   onAddManualDonor: (newDonor: DonorRecord) => void;
+  onAddNews?: (newNews: CardNews) => void;
 }
 
 export const AdminModal: React.FC<AdminModalProps> = ({
@@ -38,7 +45,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   donors,
   onUpdateStatus,
   onDeleteDonor,
-  onAddManualDonor
+  onAddManualDonor,
+  onAddNews
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     try {
@@ -58,7 +66,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }
   }, [isOpen]);
 
-  const [activeTab, setActiveTab] = useState<'all' | 'receipts' | 'add'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'receipts' | 'add' | 'createNews'>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -79,6 +87,22 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     isAnonymous: false,
     status: '대기' as '대기' | '발급완료' | '취소'
   });
+
+  // New Article Form State
+  const [newsForm, setNewsForm] = useState({
+    title: '',
+    category: '소식' as '소식' | '활동',
+    author: '사무국',
+    date: new Date().toISOString().slice(0, 10).replace(/-/g, '.'),
+    summary: '',
+    content: '',
+    thumbnail: '',
+    badge: '',
+    externalLink: '',
+    featured: false
+  });
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
@@ -275,6 +299,99 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     });
   };
 
+  // Handle image upload via FileReader
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // File size validation (up to 8MB)
+    if (file.size > 8 * 1024 * 1024) {
+      alert('이미지 파일 크기는 최대 8MB 이하로 업로드해 주세요.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        const base64Str = event.target.result as string;
+        setImagePreview(base64Str);
+        setNewsForm((prev) => ({ ...prev, thumbnail: base64Str }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImagePreview('');
+    setNewsForm((prev) => ({ ...prev, thumbnail: '' }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Submit news form
+  const handleNewsSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newsForm.title.trim()) {
+      alert('소식/활동의 제목을 입력해주세요.');
+      return;
+    }
+    if (!newsForm.content.trim()) {
+      alert('상세 내용을 입력해주세요.');
+      return;
+    }
+
+    const fallbackImg = newsForm.category === '소식'
+      ? 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80'
+      : 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=800&q=80';
+
+    const chosenThumbnail = imagePreview || newsForm.thumbnail || fallbackImg;
+    const generatedSummary = newsForm.summary.trim()
+      ? newsForm.summary.trim()
+      : newsForm.content.trim().slice(0, 100).replace(/\n/g, ' ') + (newsForm.content.trim().length > 100 ? '...' : '');
+
+    const newArticle: CardNews = {
+      id: `news-${Date.now()}`,
+      title: newsForm.title.trim(),
+      category: newsForm.category,
+      date: newsForm.date.trim() || new Date().toISOString().slice(0, 10).replace(/-/g, '.'),
+      summary: generatedSummary,
+      thumbnail: chosenThumbnail,
+      slides: [chosenThumbnail],
+      content: newsForm.content.trim(),
+      author: newsForm.author.trim() || '사무국',
+      views: 0,
+      likes: 0,
+      featured: newsForm.featured,
+      badge: newsForm.badge.trim() || undefined,
+      externalLink: newsForm.externalLink.trim() || undefined
+    };
+
+    if (onAddNews) {
+      onAddNews(newArticle);
+    }
+    alert('소식/활동 게시글이 성공적으로 등록되었습니다.');
+
+    // Reset Form
+    setNewsForm({
+      title: '',
+      category: '소식',
+      author: '사무국',
+      date: new Date().toISOString().slice(0, 10).replace(/-/g, '.'),
+      summary: '',
+      content: '',
+      thumbnail: '',
+      badge: '',
+      externalLink: '',
+      featured: false
+    });
+    setImagePreview('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    setActiveTab('all');
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto">
       <div className="bg-white rounded-3xl max-w-6xl w-full p-5 sm:p-8 shadow-2xl border border-slate-200 relative my-6 max-h-[92vh] flex flex-col">
@@ -442,6 +559,18 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   <Plus className="w-3.5 h-3.5" />
                   <span>수동 후원자 등록</span>
                 </button>
+
+                <button
+                  onClick={() => setActiveTab('createNews')}
+                  className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    activeTab === 'createNews'
+                      ? 'bg-rose-600 text-white shadow-xs'
+                      : 'bg-white text-slate-700 hover:bg-rose-50 hover:text-rose-800'
+                  }`}
+                >
+                  <Newspaper className="w-3.5 h-3.5" />
+                  <span>📸 소식/활동 등록</span>
+                </button>
               </div>
 
               {/* Excel Download Buttons */}
@@ -468,7 +597,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             </div>
 
             {/* Filter Controls Bar (Visible on 'all' or 'receipts' tabs) */}
-            {activeTab !== 'add' && (
+            {activeTab !== 'add' && activeTab !== 'createNews' && (
               <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5">
                 {/* Search Bar */}
                 <div className="md:col-span-6 relative">
@@ -849,6 +978,277 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       후원 내역 등록 저장
                     </button>
                   </div>
+                </form>
+              </div>
+            )}
+
+            {/* TAB 4: Create News & Activity (With Image Upload) */}
+            {activeTab === 'createNews' && (
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-6 space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-4">
+                  <div>
+                    <h3 className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                      <Newspaper className="w-5 h-5 text-rose-600" />
+                      <span>새 소식 및 활동 게시글 등록</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      PC 또는 모바일에서 사진 파일을 직접 첨부하여 카드뉴스 형태의 소식/활동을 등록합니다.
+                    </p>
+                  </div>
+                  <span className="self-start sm:self-auto px-3 py-1 bg-rose-100 text-rose-800 text-[11px] font-bold rounded-full">
+                    실시간 메인 화면 즉시 반영
+                  </span>
+                </div>
+
+                <form onSubmit={handleNewsSubmit} className="space-y-4">
+                  
+                  {/* Category & Badge Selector */}
+                  <div className="grid sm:grid-cols-12 gap-3">
+                    <div className="sm:col-span-4">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        구분 <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2 bg-white p-1 rounded-xl border border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => setNewsForm({ ...newsForm, category: '소식' })}
+                          className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                            newsForm.category === '소식'
+                              ? 'bg-teal-600 text-white shadow-xs'
+                              : 'text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          📢 소식 (News)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewsForm({ ...newsForm, category: '활동' })}
+                          className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                            newsForm.category === '활동'
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          🏃 활동 (Activities)
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-4">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        작성자 <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="예: 사무국, 추진위원회"
+                        value={newsForm.author}
+                        onChange={(e) => setNewsForm({ ...newsForm, author: e.target.value })}
+                        required
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-semibold focus:border-rose-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-4">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        작성일자 <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="YYYY.MM.DD (예: 2026.08.14)"
+                        value={newsForm.date}
+                        onChange={(e) => setNewsForm({ ...newsForm, date: e.target.value })}
+                        required
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-semibold focus:border-rose-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Title */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      게시글 제목 <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="게시글의 제목을 입력하세요 (예: 2026년 기억과 평화의 집 건립 추진 현장 방문 보고)"
+                      value={newsForm.title}
+                      onChange={(e) => setNewsForm({ ...newsForm, title: e.target.value })}
+                      required
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-200 transition-all"
+                    />
+                  </div>
+
+                  {/* Summary */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      한 줄 요약 (목록 카드에 노출)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="비워둘 경우 상세 내용 앞부분이 자동으로 요약으로 사용됩니다."
+                      value={newsForm.summary}
+                      onChange={(e) => setNewsForm({ ...newsForm, summary: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:border-rose-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Image Upload with FileReader & Preview */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <ImageIcon className="w-4 h-4 text-rose-600" />
+                        <span>대표 사진 / 카드뉴스 이미지 업로드</span>
+                      </span>
+                      <span className="text-[11px] font-normal text-slate-400">
+                        JPG, PNG, WebP (FileReader Base64 변환)
+                      </span>
+                    </label>
+
+                    {/* Hidden input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      id="news-image-input"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+
+                    {imagePreview ? (
+                      /* Preview Box */
+                      <div className="bg-white border-2 border-rose-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4">
+                        <div className="relative w-full sm:w-48 h-36 rounded-xl overflow-hidden bg-slate-900 shrink-0 border border-slate-200">
+                          <img
+                            src={imagePreview}
+                            alt="선택된 이미지 미리보기"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                            미리보기
+                          </div>
+                        </div>
+
+                        <div className="flex-1 space-y-2 text-center sm:text-left w-full">
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>사진 파일 로드 및 Base64 변환 완료</span>
+                          </div>
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            이 이미지가 카드뉴스 썸네일 및 본문 슬라이드 대표 사진으로 등록됩니다.
+                          </p>
+                          <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer transition-all flex items-center gap-1"
+                            >
+                              <Upload className="w-3 h-3" />
+                              <span>다른 사진으로 변경</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleRemoveImage}
+                              className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold cursor-pointer transition-all flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>사진 삭제</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Drag & Drop / Click to Upload Box */
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className="border-2 border-dashed border-slate-300 hover:border-rose-400 bg-white hover:bg-rose-50/30 rounded-2xl p-6 text-center cursor-pointer transition-all group"
+                      >
+                        <div className="w-12 h-12 rounded-2xl bg-rose-50 group-hover:bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-2 transition-colors">
+                          <Upload className="w-6 h-6" />
+                        </div>
+                        <p className="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-rose-700 transition-colors">
+                          클릭하여 내 컴퓨터/모바일의 사진 파일 선택
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-1">
+                          선택 시 즉시 Base64로 자동 변환되어 안전하게 브라우저 저장소에 저장됩니다. (미첨부 시 기본 이미지 자동 적용)
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content (Textarea) */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      상세 내용 본문 <span className="text-rose-500">*</span>
+                    </label>
+                    <textarea
+                      rows={6}
+                      placeholder="소식 및 활동의 상세 내용을 작성해 주세요. 줄바꿈과 공백이 그대로 보존되어 카드 모달에 표시됩니다."
+                      value={newsForm.content}
+                      onChange={(e) => setNewsForm({ ...newsForm, content: e.target.value })}
+                      required
+                      className="w-full bg-white border border-slate-200 rounded-xl p-3.5 text-xs sm:text-sm text-slate-800 focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-200 transition-all"
+                    />
+                  </div>
+
+                  {/* Additional Optional Options */}
+                  <div className="grid sm:grid-cols-2 gap-3 p-3.5 bg-white border border-slate-200 rounded-xl">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        강조 배지 텍스트 (선택사항)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="예: 현장소식, 언론보도, 공지 등"
+                        value={newsForm.badge}
+                        onChange={(e) => setNewsForm({ ...newsForm, badge: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:bg-white focus:border-rose-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        외부 링크 / 영상 URL (선택사항)
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://..."
+                        value={newsForm.externalLink}
+                        onChange={(e) => setNewsForm({ ...newsForm, externalLink: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:bg-white focus:border-rose-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2 pt-1 flex items-center justify-between">
+                      <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newsForm.featured}
+                          onChange={(e) => setNewsForm({ ...newsForm, featured: e.target.checked })}
+                          className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500"
+                        />
+                        <span>⭐ 'HOT / 중요 소식' 배지 부착하기</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Form Submit & Cancel */}
+                  <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-200/80">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('all')}
+                      className="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-300 transition-colors cursor-pointer"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
+                    >
+                      <Sparkles className="w-4 h-4 text-rose-200" />
+                      <span>소식/활동 게시글 등록하기</span>
+                    </button>
+                  </div>
+
                 </form>
               </div>
             )}
