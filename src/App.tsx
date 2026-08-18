@@ -16,7 +16,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('소개');
   const [newsList, setNewsList] = useState<CardNews[]>(() => {
     try {
-      const saved = localStorage.getItem('peace_news_v2');
+      const saved = localStorage.getItem('peace_news_v1') || localStorage.getItem('peace_news_v2');
       if (saved) {
         const parsed: CardNews[] = JSON.parse(saved);
         const existingIds = new Set(parsed.map((n) => n.id));
@@ -49,10 +49,10 @@ export default function App() {
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
   const [isDonateModalOpen, setIsDonateModalOpen] = useState<boolean>(false);
 
-  // Save news to localStorage whenever state changes
+  // Save news to localStorage ('peace_news_v1') whenever state changes
   useEffect(() => {
     try {
-      localStorage.setItem('peace_news_v2', JSON.stringify(newsList));
+      localStorage.setItem('peace_news_v1', JSON.stringify(newsList));
     } catch (e) {
       console.error('Failed to save news to localStorage:', e);
     }
@@ -102,7 +102,15 @@ export default function App() {
   };
 
   const handleAddNews = (newNews: CardNews) => {
-    setNewsList((prev) => [newNews, ...prev]);
+    setNewsList((prev) => {
+      const updated = [newNews, ...prev.filter((item) => item.id !== newNews.id)];
+      try {
+        localStorage.setItem('peace_news_v1', JSON.stringify(updated));
+      } catch (e) {
+        console.error('Failed to immediately save to localStorage:', e);
+      }
+      return updated;
+    });
     setIsAdminModalOpen(false);
     setTimeout(() => {
       scrollToSection('news');
@@ -112,11 +120,7 @@ export default function App() {
   const scrollToSection = (id: string) => {
     const el = document.getElementById(id);
     if (el) {
-      const offsetTop = el.offsetTop - 80;
-      window.scrollTo({
-        top: Math.max(0, offsetTop),
-        behavior: 'smooth'
-      });
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 

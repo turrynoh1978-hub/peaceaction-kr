@@ -56,13 +56,15 @@ export const NewsSection: React.FC<NewsSectionProps> = ({ newsList, onLikeNews }
   }, [selectedNews]);
 
   // Filter list by category
-  const cheerVideoCount = newsList.filter((item) => item.youtubeId || item.badge === '후원 응원').length;
+  const cheerVideoCount = newsList.filter((item) => item.youtubeId || item.badge === '후원 응원' || item.isVideo).length;
+  const newsCount = newsList.filter((item) => item.category === '소식').length;
+  const activityCount = newsList.filter((item) => item.category === '활동' && !item.youtubeId && !item.isVideo).length;
 
   const filteredNews = newsList.filter((item) => {
     if (selectedCategory === '전체') return true;
-    if (selectedCategory === '후원 응원 영상') return item.youtubeId || item.badge === '후원 응원' || item.isVideo;
+    if (selectedCategory === '후원 응원 영상') return Boolean(item.youtubeId || item.badge === '후원 응원' || item.isVideo);
     if (selectedCategory === '소식') return item.category === '소식';
-    if (selectedCategory === '활동') return item.category === '활동' && !item.youtubeId;
+    if (selectedCategory === '활동') return item.category === '활동' && !item.youtubeId && !item.isVideo;
     return true;
   });
 
@@ -118,7 +120,7 @@ export const NewsSection: React.FC<NewsSectionProps> = ({ newsList, onLikeNews }
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              소식
+              소식 ({newsCount})
             </button>
             <button
               onClick={() => setSelectedCategory('활동')}
@@ -128,7 +130,7 @@ export const NewsSection: React.FC<NewsSectionProps> = ({ newsList, onLikeNews }
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              활동
+              활동 ({activityCount})
             </button>
           </div>
         </div>
