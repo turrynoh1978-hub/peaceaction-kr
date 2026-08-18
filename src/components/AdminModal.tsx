@@ -33,20 +33,24 @@ interface AdminModalProps {
   isOpen: boolean;
   onClose: () => void;
   donors: DonorRecord[];
+  newsList?: CardNews[];
   onUpdateStatus: (id: string, status: '대기' | '발급완료' | '취소') => void;
   onDeleteDonor: (id: string) => void;
   onAddManualDonor: (newDonor: DonorRecord) => void;
   onAddNews?: (newNews: CardNews) => void;
+  onDeleteNews?: (id: string) => void;
 }
 
 export const AdminModal: React.FC<AdminModalProps> = ({
   isOpen,
   onClose,
   donors,
+  newsList = [],
   onUpdateStatus,
   onDeleteDonor,
   onAddManualDonor,
-  onAddNews
+  onAddNews,
+  onDeleteNews
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     try {
@@ -66,10 +70,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }
   }, [isOpen]);
 
-  const [activeTab, setActiveTab] = useState<'all' | 'receipts' | 'add' | 'createNews'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'receipts' | 'add' | 'manageNews' | 'createNews'>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+
+  // News management search and category filter
+  const [newsSearchTerm, setNewsSearchTerm] = useState<string>('');
+  const [newsCategoryFilter, setNewsCategoryFilter] = useState<string>('all');
 
   // New Donor Form State
   const [manualForm, setManualForm] = useState({
@@ -329,6 +337,35 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }
   };
 
+  const handleDeleteNewsClick = (id: string, title: string) => {
+    const isConfirmed = window.confirm(
+      `[게시글 삭제 확인]\n\n제목: "${title}"\n\n해당 소식/활동 게시글을 정말 삭제하시겠습니까?\n삭제 즉시 메인 화면 목록 및 저장소에서도 제거됩니다.`
+    );
+    if (isConfirmed && onDeleteNews) {
+      onDeleteNews(id);
+    }
+  };
+
+  // Filtered news list for management tab
+  const filteredNewsList = newsList.filter((item) => {
+    const matchesCategory =
+      newsCategoryFilter === 'all'
+        ? true
+        : newsCategoryFilter === 'video'
+        ? Boolean(item.youtubeId || item.badge === '후원 응원' || item.isVideo)
+        : item.category === newsCategoryFilter;
+
+    const term = newsSearchTerm.toLowerCase().trim();
+    const matchesSearch =
+      !term ||
+      item.title.toLowerCase().includes(term) ||
+      (item.summary && item.summary.toLowerCase().includes(term)) ||
+      (item.author && item.author.toLowerCase().includes(term)) ||
+      (item.date && item.date.includes(term));
+
+    return matchesCategory && matchesSearch;
+  });
+
   // Submit news form
   const handleNewsSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -389,7 +426,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-    setActiveTab('all');
+    setActiveTab('manageNews');
   };
 
   return (
@@ -561,6 +598,21 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 </button>
 
                 <button
+                  onClick={() => setActiveTab('manageNews')}
+                  className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    activeTab === 'manageNews'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white text-slate-700 hover:bg-indigo-50 hover:text-indigo-800'
+                  }`}
+                >
+                  <Newspaper className="w-3.5 h-3.5" />
+                  <span>📰 소식/활동 관리</span>
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-indigo-100 text-indigo-900 font-extrabold">
+                    {newsList.length}
+                  </span>
+                </button>
+
+                <button
                   onClick={() => setActiveTab('createNews')}
                   className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                     activeTab === 'createNews'
@@ -568,8 +620,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       : 'bg-white text-slate-700 hover:bg-rose-50 hover:text-rose-800'
                   }`}
                 >
-                  <Newspaper className="w-3.5 h-3.5" />
-                  <span>📸 소식/활동 등록</span>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>📸 새 글 작성</span>
                 </button>
               </div>
 
@@ -597,7 +649,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             </div>
 
             {/* Filter Controls Bar (Visible on 'all' or 'receipts' tabs) */}
-            {activeTab !== 'add' && activeTab !== 'createNews' && (
+            {(activeTab === 'all' || activeTab === 'receipts') && (
               <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5">
                 {/* Search Bar */}
                 <div className="md:col-span-6 relative">
@@ -649,7 +701,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             )}
 
             {/* TAB CONTENT 1 & 2: DONOR & RECEIPT DATA TABLE */}
-            {activeTab !== 'add' && (
+            {(activeTab === 'all' || activeTab === 'receipts') && (
               <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-2xs">
                 <div className="overflow-x-auto max-h-[500px]">
                   <table className="w-full text-left border-collapse text-xs">
@@ -982,7 +1034,231 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               </div>
             )}
 
-            {/* TAB 4: Create News & Activity (With Image Upload) */}
+            {/* TAB 4: Manage News & Activities (List & Delete) */}
+            {activeTab === 'manageNews' && (
+              <div className="space-y-4">
+                {/* News Management Header & Action Bar */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                      <Newspaper className="w-5 h-5 text-indigo-600" />
+                      <span>소식 및 활동 게시글 목록 관리</span>
+                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-bold">
+                        총 {newsList.length}건
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      현재 등록되어 있는 카드뉴스 및 소식/활동 게시글 목록입니다. 불필요한 게시글을 삭제하거나 새로운 소식을 등록할 수 있습니다.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => setActiveTab('createNews')}
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 self-start md:self-auto"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>새 소식/활동 작성하기</span>
+                  </button>
+                </div>
+
+                {/* Filter & Search Bar */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                  {/* Search Input */}
+                  <div className="sm:col-span-7 relative">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="게시글 제목, 내용, 작성자, 작성일자 검색..."
+                      value={newsSearchTerm}
+                      onChange={(e) => setNewsSearchTerm(e.target.value)}
+                      className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-none"
+                    />
+                    {newsSearchTerm && (
+                      <button
+                        onClick={() => setNewsSearchTerm('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Category Filter */}
+                  <div className="sm:col-span-5 flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto">
+                    <button
+                      onClick={() => setNewsCategoryFilter('all')}
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap text-center ${
+                        newsCategoryFilter === 'all'
+                          ? 'bg-white text-slate-900 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      전체 ({newsList.length})
+                    </button>
+                    <button
+                      onClick={() => setNewsCategoryFilter('소식')}
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap text-center ${
+                        newsCategoryFilter === '소식'
+                          ? 'bg-teal-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      소식 ({newsList.filter((n) => n.category === '소식').length})
+                    </button>
+                    <button
+                      onClick={() => setNewsCategoryFilter('활동')}
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap text-center ${
+                        newsCategoryFilter === '활동'
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      활동 ({newsList.filter((n) => n.category === '활동').length})
+                    </button>
+                    <button
+                      onClick={() => setNewsCategoryFilter('video')}
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap text-center ${
+                        newsCategoryFilter === 'video'
+                          ? 'bg-rose-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      응원영상 ({newsList.filter((n) => Boolean(n.youtubeId || n.badge === '후원 응원' || n.isVideo)).length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* News List Items */}
+                <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-2xs">
+                  {filteredNewsList.length === 0 ? (
+                    <div className="p-12 text-center text-slate-400 space-y-3">
+                      <AlertCircle className="w-10 h-10 text-slate-300 mx-auto" />
+                      <p className="text-sm font-medium text-slate-600">
+                        {newsSearchTerm ? `'${newsSearchTerm}'에 일치하는 게시글이 없습니다.` : '등록된 소식 및 활동 게시글이 없습니다.'}
+                      </p>
+                      <button
+                        onClick={() => setActiveTab('createNews')}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>새 소식 등록하러 가기</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100 max-h-[520px] overflow-y-auto">
+                      {filteredNewsList.map((item, index) => (
+                        <div
+                          key={item.id}
+                          className="p-3.5 sm:p-4 hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5"
+                        >
+                          {/* Thumbnail and Info */}
+                          <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                            {/* Index badge */}
+                            <span className="hidden sm:inline-block w-6 text-center text-xs font-mono text-slate-400 shrink-0 pt-1">
+                              {index + 1}
+                            </span>
+
+                            {/* Thumbnail */}
+                            <div className="w-20 h-14 sm:w-24 sm:h-16 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200 relative group">
+                              <img
+                                src={item.thumbnail || 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80'}
+                                alt={item.title}
+                                referrerPolicy="no-referrer"
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80';
+                                }}
+                              />
+                              {(item.isVideo || item.youtubeId) && (
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-[10px] font-bold">
+                                  ▶ 영상
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Content details */}
+                            <div className="space-y-1 flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span
+                                  className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${
+                                    item.category === '소식'
+                                      ? 'bg-teal-50 text-teal-800 border border-teal-200'
+                                      : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                  }`}
+                                >
+                                  {item.category === '소식' ? '📢 소식' : '🏃 활동'}
+                                </span>
+
+                                {item.featured && (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+                                    ⭐ HOT
+                                  </span>
+                                )}
+
+                                {item.badge && (
+                                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                    {item.badge}
+                                  </span>
+                                )}
+
+                                <span className="text-[11px] text-slate-400">• {item.date}</span>
+                                <span className="text-[11px] text-slate-500 font-medium">({item.author || '사무국'})</span>
+                              </div>
+
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                                {item.title}
+                              </h4>
+
+                              <p className="text-[11px] text-slate-500 line-clamp-1">
+                                {item.summary || item.content?.slice(0, 80)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                            {item.externalLink && (
+                              <a
+                                href={item.externalLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                                title="외부 링크 열기"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            )}
+
+                            <button
+                              onClick={() => handleDeleteNewsClick(item.id, item.title)}
+                              className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs group"
+                              title="이 게시글을 삭제합니다"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-500 group-hover:text-white transition-colors" />
+                              <span>삭제</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Footer count summary */}
+                  <div className="bg-slate-50 px-4 py-3 border-t border-slate-200 text-xs text-slate-600 flex items-center justify-between">
+                    <span>조회된 게시글: <strong className="text-slate-900">{filteredNewsList.length}건</strong> / 전체 {newsList.length}건</span>
+                    <button
+                      onClick={() => setActiveTab('createNews')}
+                      className="text-xs text-rose-600 hover:text-rose-800 font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>새 글 등록하기</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 5: Create News & Activity (With Image Upload) */}
             {activeTab === 'createNews' && (
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-6 space-y-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-4">
@@ -1235,7 +1511,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-200/80">
                     <button
                       type="button"
-                      onClick={() => setActiveTab('all')}
+                      onClick={() => setActiveTab('manageNews')}
                       className="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-300 transition-colors cursor-pointer"
                     >
                       취소

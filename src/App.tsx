@@ -117,6 +117,18 @@ export default function App() {
     }, 150);
   };
 
+  const handleDeleteNews = (id: string) => {
+    setNewsList((prev) => {
+      const updated = prev.filter((item) => item.id !== id);
+      try {
+        localStorage.setItem('peace_news_v1', JSON.stringify(updated));
+      } catch (e) {
+        console.error('Failed to save to localStorage after delete:', e);
+      }
+      return updated;
+    });
+  };
+
   const scrollToSection = (id: string) => {
     const el = document.getElementById(id);
     if (el) {
@@ -178,10 +190,12 @@ export default function App() {
           isOpen={isAdminModalOpen}
           onClose={() => setIsAdminModalOpen(false)}
           donors={donors}
+          newsList={newsList}
           onUpdateStatus={handleUpdateDonorStatus}
           onDeleteDonor={handleDeleteDonor}
           onAddManualDonor={handleAddManualDonor}
           onAddNews={handleAddNews}
+          onDeleteNews={handleDeleteNews}
         />
       </div>
     </LanguageProvider>
