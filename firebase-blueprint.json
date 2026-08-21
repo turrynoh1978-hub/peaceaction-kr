@@ -1,0 +1,69 @@
+{
+  "entities": {
+    "CardNews": {
+      "title": "CardNews",
+      "description": "News, updates, and activities posted by administrators or seeded initially.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "titleEn": { "type": "string" },
+        "category": { "type": "string", "enum": ["소식", "활동"] },
+        "categoryEn": { "type": "string" },
+        "date": { "type": "string" },
+        "summary": { "type": "string" },
+        "summaryEn": { "type": "string" },
+        "thumbnail": { "type": "string" },
+        "slides": { "type": "array" },
+        "content": { "type": "string" },
+        "contentEn": { "type": "string" },
+        "author": { "type": "string" },
+        "authorEn": { "type": "string" },
+        "views": { "type": "number" },
+        "likes": { "type": "number" },
+        "featured": { "type": "boolean" },
+        "badge": { "type": "string" },
+        "youtubeId": { "type": "string" },
+        "externalLink": { "type": "string" },
+        "isVideo": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "category", "date"]
+    },
+    "DonorRecord": {
+      "title": "DonorRecord",
+      "description": "Donation records and cheer messages from donors.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" },
+        "message": { "type": "string" },
+        "isRecurring": { "type": "boolean" },
+        "isAnonymous": { "type": "boolean" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "receiptRequested": { "type": "boolean" },
+        "receiptType": { "type": "string" },
+        "residentId": { "type": "string" },
+        "businessRegNo": { "type": "string" },
+        "address": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "amount", "date"]
+    }
+  },
+  "firestore": {
+    "/news/{newsId}": {
+      "schema": "CardNews",
+      "description": "Collection of news articles, announcements, and activity records."
+    },
+    "/donors/{donorId}": {
+      "schema": "DonorRecord",
+      "description": "Collection of donor records and cheer messages."
+    }
+  }
+}

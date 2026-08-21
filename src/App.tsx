@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { NavTab, CardNews, DonorRecord } from './types';
 import { INITIAL_CARD_NEWS, INITIAL_DONORS, CAMPAIGN_STATS } from './data/initialData';
+import {
+  testConnection,
+  subscribeNews,
+  saveNewsToFirestore,
+  deleteNewsFromFirestore,
+  likeNewsInFirestore,
+  subscribeDonors,
+  saveDonorToFirestore,
+  updateDonorStatusInFirestore,
+  deleteDonorFromFirestore
+} from './lib/firebase';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { AboutSection } from './components/AboutSection';
@@ -29,7 +40,7 @@ export default function App() {
     return INITIAL_CARD_NEWS;
   });
   
-  // LocalStorage persistent donors state
+  // Donors state with LocalStorage and Firebase fallback
   const [donors, setDonors] = useState<DonorRecord[]>(() => {
     try {
       localStorage.removeItem('peace_donors_v2'); // Clean up old test data
@@ -49,7 +60,41 @@ export default function App() {
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
   const [isDonateModalOpen, setIsDonateModalOpen] = useState<boolean>(false);
 
-  // Save news to localStorage ('peace_news_v1') whenever state changes
+  // Firestore Real-time synchronization
+  useEffect(() => {
+    testConnection();
+
+    // Subscribe to Firestore News updates
+    const unsubscribeNews = subscribeNews((remoteNews) => {
+      if (remoteNews && remoteNews.length > 0) {
+        setNewsList(remoteNews);
+        try {
+          localStorage.setItem('peace_news_v1', JSON.stringify(remoteNews));
+        } catch (e) {
+          console.warn('LocalStorage save error:', e);
+        }
+      }
+    });
+
+    // Subscribe to Firestore Donors updates
+    const unsubscribeDonors = subscribeDonors((remoteDonors) => {
+      if (remoteDonors && remoteDonors.length > 0) {
+        setDonors(remoteDonors);
+        try {
+          localStorage.setItem('peace_donors_v3', JSON.stringify(remoteDonors));
+        } catch (e) {
+          console.warn('LocalStorage save error:', e);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribeNews();
+      unsubscribeDonors();
+    };
+  }, []);
+
+  // Save news to localStorage whenever state changes as local backup
   useEffect(() => {
     try {
       localStorage.setItem('peace_news_v1', JSON.stringify(newsList));
@@ -58,15 +103,7 @@ export default function App() {
     }
   }, [newsList]);
 
-  // Calculate dynamic current amount & donor count from user additions
-  const initialDonorIds = new Set(INITIAL_DONORS.map((d) => d.id));
-  const userAddedDonors = donors.filter((d) => !initialDonorIds.has(d.id));
-  const userAddedAmountTotal = userAddedDonors.reduce((sum, d) => sum + d.amount, 0);
-
-  const dynamicCurrentAmount = CAMPAIGN_STATS.currentAmount + userAddedAmountTotal;
-  const dynamicDonorCount = CAMPAIGN_STATS.donorCount + userAddedDonors.length;
-
-  // Save donors to localStorage whenever state changes
+  // Save donors to localStorage whenever state changes as local backup
   useEffect(() => {
     try {
       localStorage.setItem('peace_donors_v3', JSON.stringify(donors));
@@ -76,48 +113,81 @@ export default function App() {
   }, [donors]);
 
   const handleLikeNews = (id: string) => {
+    const target = newsList.find((n) => n.id === id);
+    const currentLikes = target?.likes || 0;
+
     setNewsList((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, likes: item.likes + 1 } : item
       )
     );
+
+    // Sync to Firestore
+    likeNewsInFirestore(id, currentLikes);
   };
 
-  const handleAddDonor = (newDonor: DonorRecord, addedAmount: number) => {
+  const handleAddDonor = (newDonor: DonorRecord, _addedAmount?: number) => {
     setDonors((prev) => [newDonor, ...prev]);
+    // Save to Firestore
+    saveDonorToFirestore(newDonor).catch((err) => {
+      console.error('Failed to save donor to Firestore:', err);
+    });
   };
 
   const handleUpdateDonorStatus = (id: string, status: '대기' | '발급완료' | '취소') => {
     setDonors((prev) =>
       prev.map((d) => (d.id === id ? { ...d, status } : d))
     );
+    // Sync to Firestore
+    updateDonorStatusInFirestore(id, status).catch((err) => {
+      console.error('Failed to update donor status in Firestore:', err);
+    });
   };
 
   const handleDeleteDonor = (id: string) => {
     setDonors((prev) => prev.filter((d) => d.id !== id));
+    // Delete from Firestore
+    deleteDonorFromFirestore(id).catch((err) => {
+      console.error('Failed to delete donor from Firestore:', err);
+    });
   };
 
   const handleAddManualDonor = (newDonor: DonorRecord) => {
     setDonors((prev) => [newDonor, ...prev]);
+    // Save to Firestore
+    saveDonorToFirestore(newDonor).catch((err) => {
+      console.error('Failed to save manual donor to Firestore:', err);
+    });
   };
 
-  const handleAddNews = (newNews: CardNews) => {
+  const handleAddNews = async (newNews: CardNews) => {
+    // 1. Update local state immediately for instant feedback
     setNewsList((prev) => {
       const updated = [newNews, ...prev.filter((item) => item.id !== newNews.id)];
       try {
         localStorage.setItem('peace_news_v1', JSON.stringify(updated));
       } catch (e) {
-        console.error('Failed to immediately save to localStorage:', e);
+        console.error('Failed to save news to localStorage:', e);
       }
       return updated;
     });
+
+    // 2. Persist to Firebase Firestore database (survives all builds and device restarts)
+    try {
+      await saveNewsToFirestore(newNews);
+      console.log('Successfully saved news to Firebase Firestore:', newNews.id);
+    } catch (err) {
+      console.error('Failed to save news to Firestore:', err);
+    }
+
     setIsAdminModalOpen(false);
     setTimeout(() => {
       scrollToSection('news');
     }, 150);
   };
 
-  const handleDeleteNews = (id: string) => {
+  const handleDeleteNews = async (id: string) => {
+    // 1. Update local state immediately
     setNewsList((prev) => {
       const updated = prev.filter((item) => item.id !== id);
       try {
@@ -127,6 +197,14 @@ export default function App() {
       }
       return updated;
     });
+
+    // 2. Delete from Firebase Firestore database
+    try {
+      await deleteNewsFromFirestore(id);
+      console.log('Successfully deleted news from Firebase Firestore:', id);
+    } catch (err) {
+      console.error('Failed to delete news from Firestore:', err);
+    }
   };
 
   const scrollToSection = (id: string) => {

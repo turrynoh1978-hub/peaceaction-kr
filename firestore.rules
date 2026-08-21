@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // News & Activities Collection (CardNews)
+    match /news/{newsId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Donors & Cheer Messages Collection (DonorRecord)
+    match /donors/{donorId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Connection test document
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+  }
+}
