@@ -76,3 +76,13 @@ export interface ArchiveItem {
   fileCount?: number;
   externalLink?: string;
 }
+
+export interface CampaignStats {
+  targetAmount: number;
+  currentAmount: number;
+  donorCount: number;
+  daysLeft: number;
+  startDate: string;
+  endDate: string;
+}
+

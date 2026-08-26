@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DonationFormState, DonorRecord } from '../types';
+import { DonationFormState, DonorRecord, CampaignStats } from '../types';
 import { CAMPAIGN_STATS, INITIAL_DONORS } from '../data/initialData';
 import {
   Heart,
@@ -29,13 +29,15 @@ interface DonationSectionProps {
   onAddDonor: (newDonor: DonorRecord, amount: number) => void;
   isOpenModalDirectly?: boolean;
   onCloseModalDirectly?: () => void;
+  stats?: CampaignStats;
 }
 
 export const DonationSection: React.FC<DonationSectionProps> = ({
   donors,
   onAddDonor,
   isOpenModalDirectly = false,
-  onCloseModalDirectly
+  onCloseModalDirectly,
+  stats
 }) => {
   const { language, t } = useLanguage();
 
@@ -551,12 +553,13 @@ export const DonationSection: React.FC<DonationSectionProps> = ({
     </form>
   );
 
+  const effectiveStats = stats || CAMPAIGN_STATS;
   const initialDonorIds = new Set(INITIAL_DONORS.map((d) => d.id));
   const userAddedDonors = donors.filter((d) => !initialDonorIds.has(d.id));
   const userAddedTotal = userAddedDonors.reduce((sum, d) => sum + d.amount, 0);
 
-  const displayCurrentAmount = CAMPAIGN_STATS.currentAmount + userAddedTotal;
-  const displayDonorCount = CAMPAIGN_STATS.donorCount + userAddedDonors.length;
+  const displayCurrentAmount = effectiveStats.currentAmount + userAddedTotal;
+  const displayDonorCount = effectiveStats.donorCount + userAddedDonors.length;
 
   const filteredDonors = donors.filter(d =>
     d.name.includes(donorSearchTerm) || (d.message && d.message.includes(donorSearchTerm))
@@ -564,7 +567,7 @@ export const DonationSection: React.FC<DonationSectionProps> = ({
 
   const progressPercent = Math.min(
     100,
-    Number(((displayCurrentAmount / CAMPAIGN_STATS.targetAmount) * 100).toFixed(1))
+    Number(((displayCurrentAmount / effectiveStats.targetAmount) * 100).toFixed(1))
   );
 
   return (
@@ -696,7 +699,7 @@ export const DonationSection: React.FC<DonationSectionProps> = ({
                 {t('don.targetAmountLabel', '모금 목표액')}
               </span>
               <div className="text-xl sm:text-2xl font-black mt-1">
-                {CAMPAIGN_STATS.targetAmount.toLocaleString()}{language === 'en' ? ' KRW' : '원'}
+                {effectiveStats.targetAmount.toLocaleString()}{language === 'en' ? ' KRW' : '원'}
               </div>
             </div>
 

@@ -3,17 +3,20 @@ import { Heart, ArrowRight, Shield, Users, MessageSquare, Sparkles } from 'lucid
 import { LogoIcon } from './LogoIcon';
 import { VideoSection } from './VideoSection';
 import { CAMPAIGN_STATS } from '../data/initialData';
+import { CampaignStats } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 
 interface HeroProps {
   onDonateClick: () => void;
   onExploreClick: () => void;
   cheerCount?: number;
+  stats?: CampaignStats;
 }
 
-export const Hero: React.FC<HeroProps> = ({ onDonateClick, onExploreClick, cheerCount = 0 }) => {
+export const Hero: React.FC<HeroProps> = ({ onDonateClick, onExploreClick, cheerCount = 0, stats }) => {
   const { language, t } = useLanguage();
-  const percent = Math.round((CAMPAIGN_STATS.currentAmount / CAMPAIGN_STATS.targetAmount) * 100);
+  const effectiveStats = stats || CAMPAIGN_STATS;
+  const percent = Math.round((effectiveStats.currentAmount / effectiveStats.targetAmount) * 100);
 
   return (
     <section id="hero" className="relative pt-28 pb-16 lg:pt-36 lg:pb-24 bg-gradient-to-b from-sky-50/90 via-teal-50/60 to-emerald-50/30 overflow-hidden">
@@ -112,13 +115,13 @@ export const Hero: React.FC<HeroProps> = ({ onDonateClick, onExploreClick, cheer
                   <span>
                     {t('hero.currentAmountLabel', '현재 모금액:')}{' '}
                     <strong className="text-slate-800 font-bold">
-                      {language === 'en' ? `$${Math.round(CAMPAIGN_STATS.currentAmount / 1300).toLocaleString()} (~` : ''}
-                      {CAMPAIGN_STATS.currentAmount.toLocaleString()}원
+                      {language === 'en' ? `$${Math.round(effectiveStats.currentAmount / 1300).toLocaleString()} (~` : ''}
+                      {effectiveStats.currentAmount.toLocaleString()}원
                       {language === 'en' ? ')' : ''}
                     </strong>
                   </span>
                   <span>
-                    {t('hero.targetAmountLabel', '목표액:')} {CAMPAIGN_STATS.targetAmount.toLocaleString()}원
+                    {t('hero.targetAmountLabel', '목표액:')} {effectiveStats.targetAmount.toLocaleString()}원
                   </span>
                 </div>
                 <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden p-0.5 border border-slate-200/60">
@@ -137,7 +140,7 @@ export const Hero: React.FC<HeroProps> = ({ onDonateClick, onExploreClick, cheer
                     <span>{t('hero.donorsLabel', '함께한 시민 기부자')}</span>
                   </div>
                   <div className="text-lg font-bold text-slate-800 mt-0.5">
-                    {CAMPAIGN_STATS.donorCount.toLocaleString()} {t('hero.unitPeople', '명')}
+                    {effectiveStats.donorCount.toLocaleString()} {t('hero.unitPeople', '명')}
                   </div>
                 </div>
 

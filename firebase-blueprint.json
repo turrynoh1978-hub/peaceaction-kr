@@ -64,6 +64,10 @@
     "/donors/{donorId}": {
       "schema": "DonorRecord",
       "description": "Collection of donor records and cheer messages."
+    },
+    "/settings/{settingId}": {
+      "schema": "CampaignStats",
+      "description": "Collection of campaign settings and dynamic stats."
     }
   }
 }

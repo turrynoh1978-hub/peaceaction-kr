@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DonorRecord, CardNews } from '../types';
+import { compressImage } from '../lib/imageCompressor';
 import {
   ShieldCheck,
   X,
@@ -26,7 +27,9 @@ import {
   Upload,
   FileText,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Loader2,
+  Link as LinkIcon
 } from 'lucide-react';
 
 interface AdminModalProps {
@@ -110,6 +113,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     featured: false
   });
   const [imagePreview, setImagePreview] = useState<string>('');
+  const [imageSourceMode, setImageSourceMode] = useState<'upload' | 'url'>('upload');
+  const [imageUrlInput, setImageUrlInput] = useState<string>('');
+  const [isCompressingImage, setIsCompressingImage] = useState<boolean>(false);
+  const [compressedInfo, setCompressedInfo] = useState<{ sizeInKb: number; width: number; height: number } | null>(null);
+  const [isSubmittingNews, setIsSubmittingNews] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -307,42 +315,82 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     });
   };
 
-  // Handle image upload via FileReader
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle image upload with auto-compression for Firestore & LocalStorage
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // File size validation (up to 8MB)
-    if (file.size > 8 * 1024 * 1024) {
-      alert('이미지 파일 크기는 최대 8MB 이하로 업로드해 주세요.');
+    // File size validation (up to 15MB)
+    if (file.size > 15 * 1024 * 1024) {
+      alert('이미지 파일 크기는 최대 15MB 이하로 업로드해 주세요.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        const base64Str = event.target.result as string;
-        setImagePreview(base64Str);
-        setNewsForm((prev) => ({ ...prev, thumbnail: base64Str }));
-      }
-    };
-    reader.readAsDataURL(file);
+    setIsCompressingImage(true);
+    try {
+      // Compress to optimal web dimensions & lightweight size (safely under 200KB)
+      const compressed = await compressImage(file, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.82,
+        mimeType: 'image/jpeg'
+      });
+
+      setImagePreview(compressed.base64);
+      setCompressedInfo({
+        sizeInKb: compressed.sizeInKb,
+        width: compressed.width,
+        height: compressed.height
+      });
+      setNewsForm((prev) => ({ ...prev, thumbnail: compressed.base64 }));
+    } catch (err) {
+      console.error('Image compression failed:', err);
+      // Fallback to basic FileReader
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          const base64Str = event.target.result as string;
+          setImagePreview(base64Str);
+          setNewsForm((prev) => ({ ...prev, thumbnail: base64Str }));
+        }
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsCompressingImage(false);
+    }
+  };
+
+  const handleImageUrlApply = () => {
+    if (!imageUrlInput.trim()) {
+      alert('이미지 URL을 입력해주세요.');
+      return;
+    }
+    setImagePreview(imageUrlInput.trim());
+    setCompressedInfo(null);
+    setNewsForm((prev) => ({ ...prev, thumbnail: imageUrlInput.trim() }));
   };
 
   const handleRemoveImage = () => {
     setImagePreview('');
+    setCompressedInfo(null);
+    setImageUrlInput('');
     setNewsForm((prev) => ({ ...prev, thumbnail: '' }));
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const handleDeleteNewsClick = (id: string, title: string) => {
+  const handleDeleteNewsClick = async (id: string, title: string) => {
     const isConfirmed = window.confirm(
-      `[게시글 삭제 확인]\n\n제목: "${title}"\n\n해당 소식/활동 게시글을 정말 삭제하시겠습니까?\n삭제 즉시 메인 화면 목록 및 저장소에서도 제거됩니다.`
+      `[게시글 삭제 확인]\n\n제목: "${title}"\n\n해당 소식/활동 게시글을 정말 삭제하시겠습니까?\n삭제 즉시 클라우드 데이터베이스(Firestore) 및 메인 화면에서 영구 제거됩니다.`
     );
     if (isConfirmed && onDeleteNews) {
-      onDeleteNews(id);
+      try {
+        await onDeleteNews(id);
+      } catch (err) {
+        console.error('Failed to delete news:', err);
+        alert('삭제 중 오류가 발생했습니다. 다시 시도해 주세요.');
+      }
     }
   };
 
@@ -367,7 +415,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   });
 
   // Submit news form
-  const handleNewsSubmit = (e: React.FormEvent) => {
+  const handleNewsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newsForm.title.trim()) {
       alert('소식/활동의 제목을 입력해주세요.');
@@ -404,29 +452,39 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       externalLink: newsForm.externalLink.trim() || undefined
     };
 
-    if (onAddNews) {
-      onAddNews(newArticle);
-    }
-    alert('소식/활동 게시글이 성공적으로 등록되었습니다.');
+    setIsSubmittingNews(true);
+    try {
+      if (onAddNews) {
+        await onAddNews(newArticle);
+      }
+      alert('소식/활동 게시글이 성공적으로 등록되었습니다.\n(클라우드 DB에 영구 저장되어 페이지를 새로고침하거나 다른 기기에서도 항상 유지됩니다)');
 
-    // Reset Form
-    setNewsForm({
-      title: '',
-      category: '소식',
-      author: '사무국',
-      date: new Date().toISOString().slice(0, 10).replace(/-/g, '.'),
-      summary: '',
-      content: '',
-      thumbnail: '',
-      badge: '',
-      externalLink: '',
-      featured: false
-    });
-    setImagePreview('');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      // Reset Form
+      setNewsForm({
+        title: '',
+        category: '소식',
+        author: '사무국',
+        date: new Date().toISOString().slice(0, 10).replace(/-/g, '.'),
+        summary: '',
+        content: '',
+        thumbnail: '',
+        badge: '',
+        externalLink: '',
+        featured: false
+      });
+      setImagePreview('');
+      setCompressedInfo(null);
+      setImageUrlInput('');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      setActiveTab('manageNews');
+    } catch (err) {
+      console.error('Failed to submit news:', err);
+      alert('게시글 저장 중 오류가 발생했습니다. 다시 시도해 주세요.');
+    } finally {
+      setIsSubmittingNews(false);
     }
-    setActiveTab('manageNews');
   };
 
   return (
@@ -1368,19 +1426,45 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     />
                   </div>
 
-                  {/* Image Upload with FileReader & Preview */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
+                  {/* Image Upload with Compression & Direct URL & Preview */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
                         <ImageIcon className="w-4 h-4 text-rose-600" />
-                        <span>대표 사진 / 카드뉴스 이미지 업로드</span>
-                      </span>
-                      <span className="text-[11px] font-normal text-slate-400">
-                        JPG, PNG, WebP (FileReader Base64 변환)
-                      </span>
-                    </label>
+                        <span>대표 사진 / 카드뉴스 이미지 첨부</span>
+                        <span className="text-[11px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          자동 압축 최적화 (DB 영구 보존)
+                        </span>
+                      </label>
 
-                    {/* Hidden input */}
+                      {/* Mode Toggle: File Upload vs Direct URL */}
+                      <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg text-[11px] font-bold">
+                        <button
+                          type="button"
+                          onClick={() => setImageSourceMode('upload')}
+                          className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                            imageSourceMode === 'upload'
+                              ? 'bg-white text-slate-900 shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          📁 사진 파일 업로드
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setImageSourceMode('url')}
+                          className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                            imageSourceMode === 'url'
+                              ? 'bg-white text-slate-900 shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          🔗 이미지 URL 입력
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Hidden input for file upload */}
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -1407,20 +1491,26 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         <div className="flex-1 space-y-2 text-center sm:text-left w-full">
                           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
                             <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>사진 파일 로드 및 Base64 변환 완료</span>
+                            <span>
+                              {compressedInfo
+                                ? `사진 최적화 완료 (${compressedInfo.sizeInKb}KB, ${compressedInfo.width}x${compressedInfo.height}px)`
+                                : '사진 로드 및 준비 완료'}
+                            </span>
                           </div>
                           <p className="text-xs text-slate-500 leading-relaxed">
-                            이 이미지가 카드뉴스 썸네일 및 본문 슬라이드 대표 사진으로 등록됩니다.
+                            이 이미지가 카드뉴스 대표 사진으로 등록되며, 홈페이지를 새로고침하거나 다른 기기에서 접속해도 클라우드 DB에서 그대로 유지됩니다.
                           </p>
                           <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
-                            <button
-                              type="button"
-                              onClick={() => fileInputRef.current?.click()}
-                              className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer transition-all flex items-center gap-1"
-                            >
-                              <Upload className="w-3 h-3" />
-                              <span>다른 사진으로 변경</span>
-                            </button>
+                            {imageSourceMode === 'upload' ? (
+                              <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer transition-all flex items-center gap-1"
+                              >
+                                <Upload className="w-3 h-3" />
+                                <span>다른 사진으로 변경</span>
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               onClick={handleRemoveImage}
@@ -1432,20 +1522,55 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                           </div>
                         </div>
                       </div>
-                    ) : (
+                    ) : imageSourceMode === 'upload' ? (
                       /* Drag & Drop / Click to Upload Box */
                       <div
                         onClick={() => fileInputRef.current?.click()}
                         className="border-2 border-dashed border-slate-300 hover:border-rose-400 bg-white hover:bg-rose-50/30 rounded-2xl p-6 text-center cursor-pointer transition-all group"
                       >
-                        <div className="w-12 h-12 rounded-2xl bg-rose-50 group-hover:bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-2 transition-colors">
-                          <Upload className="w-6 h-6" />
+                        {isCompressingImage ? (
+                          <div className="py-3 flex flex-col items-center justify-center gap-2 text-rose-600">
+                            <Loader2 className="w-8 h-8 animate-spin" />
+                            <p className="text-xs font-bold">고화질 사진을 웹 및 클라우드 DB에 맞게 최적화 압축 중...</p>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="w-12 h-12 rounded-2xl bg-rose-50 group-hover:bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-2 transition-colors">
+                              <Upload className="w-6 h-6" />
+                            </div>
+                            <p className="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-rose-700 transition-colors">
+                              클릭하여 내 컴퓨터/모바일의 사진 파일 선택 (JPG, PNG, WebP)
+                            </p>
+                            <p className="text-[11px] text-slate-400 mt-1">
+                              스마트폰 고화질 원본 사진도 자동 압축되어 클라우드 DB(Firestore)에 안전하게 영구 저장됩니다.
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      /* Direct URL Input Box */
+                      <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2">
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <LinkIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="url"
+                              placeholder="https://images.unsplash.com/... 또는 웹 이미지 URL 붙여넣기"
+                              value={imageUrlInput}
+                              onChange={(e) => setImageUrlInput(e.target.value)}
+                              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-rose-500 focus:outline-none"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleImageUrlApply}
+                            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl cursor-pointer"
+                          >
+                            적용
+                          </button>
                         </div>
-                        <p className="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-rose-700 transition-colors">
-                          클릭하여 내 컴퓨터/모바일의 사진 파일 선택
-                        </p>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          선택 시 즉시 Base64로 자동 변환되어 안전하게 브라우저 저장소에 저장됩니다. (미첨부 시 기본 이미지 자동 적용)
+                        <p className="text-[11px] text-slate-400">
+                          온라인에 호스팅된 웹 이미지 주소를 직접 연결하여 사용할 수 있습니다.
                         </p>
                       </div>
                     )}
@@ -1512,16 +1637,27 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setActiveTab('manageNews')}
-                      className="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-300 transition-colors cursor-pointer"
+                      disabled={isSubmittingNews}
+                      className="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-300 transition-colors cursor-pointer disabled:opacity-50"
                     >
                       취소
                     </button>
                     <button
                       type="submit"
-                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
+                      disabled={isSubmittingNews || isCompressingImage}
+                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <Sparkles className="w-4 h-4 text-rose-200" />
-                      <span>소식/활동 게시글 등록하기</span>
+                      {isSubmittingNews ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>클라우드 DB에 영구 저장 중...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4 text-rose-200" />
+                          <span>소식/활동 게시글 등록하기 (클라우드 DB 영구저장)</span>
+                        </>
+                      )}
                     </button>
                   </div>
 
