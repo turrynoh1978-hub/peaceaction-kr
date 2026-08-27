@@ -2,8 +2,8 @@ import { CardNews, ArchiveItem, DonorRecord } from '../types';
 
 export const CAMPAIGN_STATS = {
   targetAmount: 113000000, // 1억 1,300만원
-  currentAmount: 37507000, // 3,750만 7,000원 (37,507,000원)
-  donorCount: 247, // 247명 (기존 238명 + 후원자 9명 추가)
+  currentAmount: 51657000, // 5,165만 7,000원 (51,657,000원)
+  donorCount: 276, // 276명
   daysLeft: 142,
   startDate: '2026-04-27',
   endDate: '2026-12-31'
