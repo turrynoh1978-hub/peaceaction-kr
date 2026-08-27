@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { NavTab, CardNews, DonorRecord, CampaignStats } from './types';
-import { INITIAL_CARD_NEWS, INITIAL_DONORS, CAMPAIGN_STATS } from './data/initialData';
+import { NavTab, CardNews, DonorRecord } from './types';
+import { INITIAL_CARD_NEWS, INITIAL_DONORS } from './data/initialData';
 import {
   testConnection,
   subscribeNews,
@@ -10,9 +10,7 @@ import {
   subscribeDonors,
   saveDonorToFirestore,
   updateDonorStatusInFirestore,
-  deleteDonorFromFirestore,
-  subscribeCampaignStats,
-  saveCampaignStatsToFirestore
+  deleteDonorFromFirestore
 } from './lib/firebase';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
@@ -59,27 +57,6 @@ export default function App() {
     return INITIAL_DONORS;
   });
 
-  // Campaign stats state with Firestore real-time sync
-  const [campaignStats, setCampaignStats] = useState<CampaignStats>(() => {
-    try {
-      const saved = localStorage.getItem('peace_campaign_stats_v1');
-      if (saved) {
-        const parsed: CampaignStats = JSON.parse(saved);
-        return {
-          targetAmount: parsed.targetAmount || CAMPAIGN_STATS.targetAmount,
-          currentAmount: Math.max(parsed.currentAmount || 0, CAMPAIGN_STATS.currentAmount),
-          donorCount: Math.max(parsed.donorCount || 0, CAMPAIGN_STATS.donorCount),
-          daysLeft: parsed.daysLeft ?? CAMPAIGN_STATS.daysLeft,
-          startDate: parsed.startDate || CAMPAIGN_STATS.startDate,
-          endDate: parsed.endDate || CAMPAIGN_STATS.endDate
-        };
-      }
-    } catch (e) {
-      console.error('Failed to load stats from localStorage:', e);
-    }
-    return CAMPAIGN_STATS;
-  });
-
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
   const [isDonateModalOpen, setIsDonateModalOpen] = useState<boolean>(false);
 
@@ -111,22 +88,9 @@ export default function App() {
       }
     });
 
-    // Subscribe to Firestore Campaign Stats updates
-    const unsubscribeStats = subscribeCampaignStats((remoteStats) => {
-      if (remoteStats) {
-        setCampaignStats(remoteStats);
-        try {
-          localStorage.setItem('peace_campaign_stats_v1', JSON.stringify(remoteStats));
-        } catch (e) {
-          console.warn('LocalStorage save error:', e);
-        }
-      }
-    });
-
     return () => {
       unsubscribeNews();
       unsubscribeDonors();
-      unsubscribeStats();
     };
   }, []);
 
@@ -147,15 +111,6 @@ export default function App() {
       console.error('Failed to save donors to localStorage:', e);
     }
   }, [donors]);
-
-  // Save campaign stats to localStorage as local backup
-  useEffect(() => {
-    try {
-      localStorage.setItem('peace_campaign_stats_v1', JSON.stringify(campaignStats));
-    } catch (e) {
-      console.error('Failed to save stats to localStorage:', e);
-    }
-  }, [campaignStats]);
 
   const handleLikeNews = (id: string) => {
     const target = newsList.find((n) => n.id === id);
@@ -284,7 +239,6 @@ export default function App() {
             cheerCount={donors.length}
             onDonateClick={handleOpenDonateModal}
             onExploreClick={() => scrollToSection('news')}
-            stats={campaignStats}
           />
 
           {/* 1. 소개 (About) */}
@@ -299,7 +253,6 @@ export default function App() {
             onAddDonor={handleAddDonor}
             isOpenModalDirectly={isDonateModalOpen}
             onCloseModalDirectly={() => setIsDonateModalOpen(false)}
-            stats={campaignStats}
           />
 
           {/* 4. 아카이브 (Archive) */}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { DonationFormState, DonorRecord, CampaignStats } from '../types';
-import { CAMPAIGN_STATS, INITIAL_DONORS } from '../data/initialData';
+import { DonationFormState, DonorRecord } from '../types';
+import { CAMPAIGN_STATS } from '../data/initialData';
 import {
   Heart,
   ShieldCheck,
@@ -29,15 +29,13 @@ interface DonationSectionProps {
   onAddDonor: (newDonor: DonorRecord, amount: number) => void;
   isOpenModalDirectly?: boolean;
   onCloseModalDirectly?: () => void;
-  stats?: CampaignStats;
 }
 
 export const DonationSection: React.FC<DonationSectionProps> = ({
   donors,
   onAddDonor,
   isOpenModalDirectly = false,
-  onCloseModalDirectly,
-  stats
+  onCloseModalDirectly
 }) => {
   const { language, t } = useLanguage();
 
@@ -553,22 +551,15 @@ export const DonationSection: React.FC<DonationSectionProps> = ({
     </form>
   );
 
-  const effectiveStats = stats || CAMPAIGN_STATS;
-  const initialDonorIds = new Set(INITIAL_DONORS.map((d) => d.id));
-  const userAddedDonors = donors.filter((d) => !initialDonorIds.has(d.id));
-  const userAddedTotal = userAddedDonors.reduce((sum, d) => sum + d.amount, 0);
-
-  const displayCurrentAmount = effectiveStats.currentAmount + userAddedTotal;
-  const displayDonorCount = effectiveStats.donorCount + userAddedDonors.length;
+  const displayCurrentAmount = CAMPAIGN_STATS.currentAmount;
+  const displayDonorCount = CAMPAIGN_STATS.donorCount;
+  const targetAmount = CAMPAIGN_STATS.targetAmount;
 
   const filteredDonors = donors.filter(d =>
     d.name.includes(donorSearchTerm) || (d.message && d.message.includes(donorSearchTerm))
   );
 
-  const progressPercent = Math.min(
-    100,
-    Number(((displayCurrentAmount / effectiveStats.targetAmount) * 100).toFixed(1))
-  );
+  const progressPercent = Number(((displayCurrentAmount / targetAmount) * 100).toFixed(1));
 
   return (
     <section id="sponsorship" className="py-20 bg-gradient-to-b from-sky-50/60 via-teal-50/50 to-white relative scroll-mt-20">
@@ -699,7 +690,7 @@ export const DonationSection: React.FC<DonationSectionProps> = ({
                 {t('don.targetAmountLabel', '모금 목표액')}
               </span>
               <div className="text-xl sm:text-2xl font-black mt-1">
-                {effectiveStats.targetAmount.toLocaleString()}{language === 'en' ? ' KRW' : '원'}
+                {targetAmount.toLocaleString()}{language === 'en' ? ' KRW' : '원'}
               </div>
             </div>
 
